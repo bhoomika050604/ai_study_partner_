@@ -4,6 +4,19 @@ from ai_utils import get_explanation, generate_mcq_quiz, extract_text_from_pdf
 st.set_page_config(page_title="AI Study Partner", layout="wide")
 
 # -----------------------------
+# Initialize session state
+# -----------------------------
+if "chat_history" not in st.session_state:
+    st.session_state.chat_history = []
+
+if "quiz" not in st.session_state:
+    st.session_state.quiz = None
+    st.session_state.answers = {}
+
+if "pdf_text" not in st.session_state:
+    st.session_state.pdf_text = ""
+
+# -----------------------------
 # Sidebar Navigation
 # -----------------------------
 st.sidebar.title("📚 AI Study Partner")
@@ -27,9 +40,6 @@ if page == "🏠 Home":
 # -----------------------------
 elif page == "📖 Explanation":
     st.title("📖 AI Explanation Assistant")
-
-    if "chat_history" not in st.session_state:
-        st.session_state.chat_history = []
 
     topic = st.text_input("Enter a topic:")
     level = st.selectbox("Choose explanation level:", ["Beginner", "Intermediate", "Advanced"])
@@ -63,20 +73,15 @@ elif page == "📝 Quiz":
     uploaded_file = st.file_uploader("Upload a PDF for quiz generation", type=["pdf"])
     text_input = st.text_area("Or enter text to generate quiz:")
 
-    if "quiz" not in st.session_state:
-        st.session_state.quiz = None
-        st.session_state.answers = {}
+    # Store PDF text in session_state to avoid reprocessing
+    if uploaded_file is not None and uploaded_file != st.session_state.get("last_uploaded_file", None):
+        st.session_state.pdf_text = extract_text_from_pdf(uploaded_file)
+        st.session_state.last_uploaded_file = uploaded_file
+        st.session_state.quiz = None  # reset quiz if new PDF
 
     if st.button("Generate Quiz"):
-        text = ""
-        if uploaded_file:
-            text = extract_text_from_pdf(uploaded_file)
-            if not text.strip():
-                st.warning("⚠️ No text extracted from PDF. Try another file.")
-        elif text_input.strip():
-            text = text_input
-
-        if text:
+        text = st.session_state.pdf_text if uploaded_file else text_input
+        if text.strip():
             quiz = generate_mcq_quiz(text, num_questions=10)
             if quiz is None:
                 st.error("⚠️ The AI service is busy. Please wait a few seconds and try again.")
